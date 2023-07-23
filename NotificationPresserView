@@ -1,0 +1,119 @@
+import SwiftUI
+import Firebase
+import UserNotifications
+import SPAlert
+
+struct NotificationPresserview: View {
+    @State private var animate = false
+    @State private var isSelected = false
+    @State private var checkGrades = false
+    @State private var didDisable = false
+    @State private var notificationBellName = ""
+    @State private var check = false
+    @State private var showAlert = false
+    @Binding var showWelcomePage: Bool
+    @StateObject var globalLogin = GlobalLogin()
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack {
+                Group {
+                    notificationButton
+                    logoutButton
+                        .padding(.bottom, 25)
+                }
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                
+                .onAppear {
+                    RequestsManager.requestNotificationPermission()
+                    
+                }
+                
+            }
+        }
+    }
+    private var logoutButton : some View {
+        Button  ( action: {
+            globalLogin.loggedIn = false
+            showWelcomePage = true
+            isSelected = false
+            AdditionalFunctionalityManager.updateCheck(isSelected)
+        }
+                  ,label:
+                    {
+            Text("**Log Out✌️**")
+                .foregroundColor(.white)
+                .font(.system(size: 20))
+                .frame(width: 150, height: 50)
+                .background( Color.black)
+                .cornerRadius(15)
+                .shadow(color: Color.init("MyGray4"), radius:20)
+        }
+        )
+    }
+    private var notificationButton : some View {
+        Button ( action: {
+            didDisable = true
+            isSelected.toggle()
+            AdditionalFunctionalityManager.updateCheck(isSelected)
+            withAnimation(Animation.default.repeat(while: isSelected).speed(0.6)) {
+                animate.toggle()
+            }
+            DispatchQueue
+                .main
+                .asyncAfter(deadline: .now() + 0.5) {
+                    if (!RequestsManager.buttonRequest()) {
+                        isSelected = false
+                        withAnimation(Animation.default.repeat(while: isSelected).speed(0.6)) {
+                            animate.toggle()
+                        }
+                        showAlert = true
+                        return
+                    }
+                    
+                }
+            DispatchQueue
+                .main
+                .asyncAfter(deadline: .now() + 0.2) {
+                    didDisable = false
+                    return
+        
+                }
+            
+        }
+                 ,label:
+                    {
+            Circle()
+                .fill((animate ? Color.green : Color.black))
+                .frame(width: 240, height: 240)
+                .shadow(color: Color.init("MyGray4"), radius:20)
+                .overlay(
+                    Image(isSelected ? "notification-bell-green" : "notification-bell-white")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width : 95, height : 95)
+                )
+                .shadow(color: animate ? Color.green.opacity(0.7) : Color.black.opacity(0.7), radius: animate ? 30 : 10, x: 0, y: animate ? 50: 30)
+                .scaleEffect(animate ? 1.2 : 1.0)
+                .offset(y : animate ? -7 : 0)
+            
+        }
+        )
+        .disabled(didDisable)
+        .SPAlert(isPresent: $showAlert,
+                 title: "EduTrack",
+                 message: "Cannot process request... try again!",
+                 duration: 2.0,
+                 dismissOnTap: false,
+                 preset: .error,
+                 haptic: .success,
+                 layout: .init(),
+                 completion: {
+            showAlert = false
+        }
+                 
+        )
+    }
+}
+
