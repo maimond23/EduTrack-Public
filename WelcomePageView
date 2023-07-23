@@ -1,0 +1,188 @@
+import SwiftUI
+import SPAlert
+struct WelcomePageView: View {
+    @EnvironmentObject private var launchScreenManager: LaunchScreenManager
+    @Binding var showWelcomePage : Bool
+    @State private var globalLogin = GlobalLogin()
+    @State private var studentID = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var invalidID = 0
+    @State private var animate1 = false
+    @State private var key: String = ""
+    @State private var isLoading = false
+    @State private var showButtonAnimation = true
+    @State private var moveLine = false
+    @State private var buttonDisabled = false
+    @State private var showAlert = false
+    @State private var success = false
+    var body: some View {
+        ZStack {
+            Color.init("MyGray3").ignoresSafeArea()
+            VStack(spacing : 45) {
+                bell
+                studentIDTextField
+                emailTextField
+                passwordSecureTextField
+                finishButton
+            }
+            .onAppear {
+                addAnimation()
+            }
+        }
+    }
+    
+    private var bell: some View {
+        Image("notification-bell-green")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 130, height: 130)
+            .padding(.bottom, 30)
+    }
+    
+    private var studentIDTextField : some View {
+        TextField("Student ID", text: self.$studentID, prompt: Text("Student ID").foregroundColor(Color.init("MyGray2"))
+        )
+            .padding()
+            .foregroundColor(.white)
+            .background (RoundedRectangle(cornerRadius: 20).stroke(textFieldBorderColor(invalidID, self.studentID), lineWidth: 3))
+            .frame(width: 270, height: 40)
+            .disableAutocorrection(true)
+            .modifier(ShakeEffect(animatableData:  CGFloat(invalidID)))
+            .shadow(color: Color.init("MyGray2"), radius: 12)
+    }
+    
+    private var emailTextField : some View {
+        TextField("Email", text: self.$email, prompt: Text("Email").foregroundColor(Color.init("MyGray2")))
+            .padding()
+            .foregroundColor(.white)
+            .background (RoundedRectangle(cornerRadius: 20).stroke(textFieldBorderColor(invalidID, self.email), lineWidth: 3))
+            .frame(width: 270, height: 40)
+            .textInputAutocapitalization(.never)
+            .disableAutocorrection(true)
+            .modifier(ShakeEffect(animatableData:  CGFloat(invalidID)))
+            .shadow(color: Color.init("MyGray2"), radius: 12)
+    }
+    
+    private var passwordSecureTextField : some View {
+        SecureField("Password", text: self.$password, prompt: Text("Password").foregroundColor(Color.init("MyGray2")))
+            .padding()
+            .foregroundColor(.white)
+            .background (RoundedRectangle(cornerRadius: 20).stroke(textFieldBorderColor(invalidID, self.password), lineWidth: 3))
+            .frame(width:270, height: 40)
+            .textInputAutocapitalization(.never)
+            .disableAutocorrection(true)
+            .modifier(ShakeEffect(animatableData:  CGFloat(invalidID)))
+            .shadow(color: Color.init("MyGray2"), radius: 12)
+    }
+    
+    private var finishButton : some View {
+        Button (
+            action: {
+                buttonDisabled = true
+                //BELOW CODE IS PART OF THE BACKEND
+                sync(studentID, email, password) {
+                    returningUser() {
+                        if (success)
+                        {
+                            globalLogin.loggedIn = true
+                            showWelcomePage = false
+                        }
+                        
+                        else {
+                            newUser() {
+                                globalLogin.loggedIn = true
+                                showWelcomePage = false
+                            }
+                        }
+                    }
+                }
+            },
+            label: {
+                if (!isLoading) {
+                    Text("**Finish 🥳**")
+                        .foregroundColor(.white)
+                        .font(.system(size: 22))
+                        .frame(width: 240, height: 50)
+                        .background(animate1 ? Color.green : Color.black)
+                        .cornerRadius(15)
+                }
+                else {
+                    RoundedRectangle(cornerRadius: 15)
+                        .frame(width: 240, height: 50)
+                        .foregroundColor(Color.black)
+                        .overlay{
+                            ZStack {
+                                
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color(.black), lineWidth: 22)
+                                    .frame(width : 240, height: 22)
+                                
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color.green, lineWidth: 22)
+                                    .frame(width: 40, height: 22)
+                                    .offset(x: moveLine ? 100 : -100, y: 0)
+                            }
+                        }
+                }
+            }
+            
+        )
+        .SPAlert(isPresent: $showAlert,
+                 title: "EduTrack",
+                 message: "Cannot process request... try again!",
+                 duration: 2.8,
+                 dismissOnTap: false,
+                 preset: .error,
+                 haptic: .success,
+                 layout: .init(),
+                 completion: {
+            showAlert = false        }
+        )
+        .disabled(buttonDisabled)
+        .shadow(color: animate1 ? Color.green.opacity(0.7) : Color.black.opacity(0.7), radius: animate1 ? 30 : 10, x: 0, y: animate1 ? 50: 30)
+        .scaleEffect(animate1 ? 1.1: 1.0, anchor: .center)
+        .offset(x: 0, y: animate1 ? -7 : 0)
+    }
+    
+    func addAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+            withAnimation(Animation.default.repeat(while: showButtonAnimation).speed(0.4)) {
+                animate1.toggle()
+            }
+        }
+        if (!showButtonAnimation)
+        {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                isLoading = true
+                withAnimation(Animation.default.repeat(while: isLoading).speed(0.5)) {
+                    moveLine.toggle()
+                }
+            }
+        }
+    }
+    
+    func switchColor() {
+        withAnimation {
+            invalidID += 1
+        }
+        DispatchQueue
+            .main
+            .asyncAfter(deadline: .now() + 0.9) {
+                invalidID = 0}
+    }
+    
+    
+    func textFieldBorderColor (_ invalidUsername: Int, _ message: String) -> Color {
+        if (invalidUsername == 1) {
+            return Color.red
+        }
+        else if (message != "") {
+            return Color.green
+        }
+        else
+        {
+            return Color.black
+        }
+    }
+}
